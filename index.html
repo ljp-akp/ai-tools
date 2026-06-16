@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEXUS AI DATA CENTER</title>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:"Segoe UI",sans-serif;
+}
+
+body{
+background:#050b18;
+color:#fff;
+overflow-x:hidden;
+}
+
+.header{
+height:70px;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:28px;
+font-weight:bold;
+letter-spacing:3px;
+color:#00e5ff;
+border-bottom:1px solid rgba(0,229,255,.3);
+box-shadow:0 0 20px rgba(0,229,255,.2);
+}
+
+.container{
+padding:20px;
+display:grid;
+grid-template-columns:1fr 1fr 1fr;
+gap:20px;
+}
+
+.card{
+background:rgba(10,20,40,.85);
+border:1px solid rgba(0,229,255,.3);
+border-radius:15px;
+padding:20px;
+backdrop-filter:blur(10px);
+box-shadow:0 0 20px rgba(0,229,255,.15);
+}
+
+.card h3{
+color:#00e5ff;
+margin-bottom:15px;
+}
+
+textarea{
+width:100%;
+height:200px;
+background:#08101f;
+border:1px solid #00e5ff;
+color:white;
+padding:10px;
+border-radius:10px;
+}
+
+button{
+width:100%;
+padding:12px;
+margin-top:15px;
+background:#00e5ff;
+border:none;
+border-radius:10px;
+font-size:16px;
+font-weight:bold;
+cursor:pointer;
+}
+
+.stats{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:15px;
+padding:20px;
+}
+
+.stat-box{
+background:#08101f;
+border:1px solid rgba(0,229,255,.3);
+padding:20px;
+border-radius:12px;
+text-align:center;
+}
+
+.stat-value{
+font-size:28px;
+font-weight:bold;
+color:#00e5ff;
+}
+
+.chart{
+height:450px;
+margin:20px;
+background:rgba(10,20,40,.85);
+border-radius:15px;
+border:1px solid rgba(0,229,255,.3);
+}
+
+@media(max-width:900px){
+
+.container{
+grid-template-columns:1fr;
+}
+
+.stats{
+grid-template-columns:repeat(2,1fr);
+}
+
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+NEXUS AI DATA CENTER
+</div>
+
+<div class="stats">
+
+<div class="stat-box">
+<div class="stat-value" id="total">0</div>
+<div>总数据</div>
+</div>
+
+<div class="stat-box">
+<div class="stat-value" id="unique">0</div>
+<div>唯一数据</div>
+</div>
+
+<div class="stat-box">
+<div class="stat-value" id="repeat">0%</div>
+<div>重复率</div>
+</div>
+
+<div class="stat-box">
+<div class="stat-value" id="risk">LOW</div>
+<div>风险等级</div>
+</div>
+
+</div>
+
+<div class="container">
+
+<div class="card">
+<h3>数据录入中心</h3>
+
+<textarea id="input"
+placeholder="输入数字，一行一个"></textarea>
+
+<button onclick="analyze()">
+开始分析
+</button>
+</div>
+
+<div class="card">
+<h3>分析结果</h3>
+<div id="result"></div>
+</div>
+
+<div class="card">
+<h3>历史记录</h3>
+<div id="history"></div>
+</div>
+
+</div>
+
+<div id="chart" class="chart"></div>
+
+<script>
+
+function analyze(){
+
+let text=document.getElementById("input").value;
+
+let nums=text.match(/\d+/g);
+
+if(!nums){
+alert("请输入数据");
+return;
+}
+
+let map={};
+
+nums.forEach(v=>{
+map[v]=(map[v]||0)+1;
+});
+
+let repeat=0;
+
+Object.values(map).forEach(v=>{
+if(v>1) repeat+=(v-1);
+});
+
+let repeatRate=
+((repeat/nums.length)*100).toFixed(1);
+
+let risk="LOW";
+
+if(repeatRate>50){
+risk="HIGH";
+}else if(repeatRate>20){
+risk="MID";
+}
+
+document.getElementById("total").innerText=
+nums.length;
+
+document.getElementById("unique").innerText=
+Object.keys(map).length;
+
+document.getElementById("repeat").innerText=
+repeatRate+"%";
+
+document.getElementById("risk").innerText=
+risk;
+
+let html="";
+
+Object.entries(map).forEach(item=>{
+
+html+=`
+<div style="padding:5px 0">
+${item[0]} : ${item[1]}次
+</div>
+`;
+
+});
+
+document.getElementById("result").innerHTML=
+html;
+
+drawChart(map);
+
+saveHistory(nums.length,risk);
+}
+
+function drawChart(data){
+
+let chart=
+echarts.init(document.getElementById("chart"));
+
+chart.setOption({
+
+backgroundColor:"transparent",
+
+title:{
+text:"数据统计图",
+textStyle:{
+color:"#00e5ff"
+}
+},
+
+tooltip:{},
+
+xAxis:{
+type:"category",
+data:Object.keys(data),
+axisLabel:{color:"#fff"}
+},
+
+yAxis:{
+type:"value",
+axisLabel:{color:"#fff"}
+},
+
+series:[{
+type:"bar",
+data:Object.values(data)
+}]
+});
+}
+
+function saveHistory(total,risk){
+
+let list=
+JSON.parse(
+localStorage.getItem("history")||"[]"
+);
+
+list.unshift({
+time:new Date().toLocaleString(),
+total,
+risk
+});
+
+list=list.slice(0,10);
+
+localStorage.setItem(
+"history",
+JSON.stringify(list)
+);
+
+renderHistory();
+}
+
+function renderHistory(){
+
+let list=
+JSON.parse(
+localStorage.getItem("history")||"[]"
+);
+
+let html="";
+
+list.forEach(v=>{
+
+html+=`
+<div style="padding:10px 0;border-bottom:1px solid #222;">
+${v.time}<br>
+数据:${v.total}<br>
+等级:${v.risk}
+</div>
+`;
+
+});
+
+document.getElementById("history").innerHTML=
+html;
+}
+
+renderHistory();
+
+</script>
+
+</body>
+</html>
